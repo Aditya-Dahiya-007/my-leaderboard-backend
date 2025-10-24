@@ -1,7 +1,7 @@
 import fs from 'fs';
 import csv from "csv-parser";
 import path from 'path';
-import { NextResponse } from 'next/server'; // Use NextResponse for convenience
+import { NextResponse } from 'next/server'; // Use NextResponse
 
 // Define expected data structure for clarity
 interface LeaderboardEntry {
@@ -14,6 +14,14 @@ interface LeaderboardEntry {
     arcadePointsStr: string;
     rank?: number; // Rank added after sorting
 }
+
+// Define common CORS headers
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*', // Allow all origins
+    'Access-Control-Allow-Methods': 'GET, OPTIONS', // Allow GET and OPTIONS methods
+    'Access-Control-Allow-Headers': 'Content-Type, Cache-Control, Pragma', // Allow these headers
+};
+
 
 export async function GET() {
     // Correct path relative to the root of the deployed project
@@ -43,7 +51,7 @@ export async function GET() {
         // Process data
         let processedData: LeaderboardEntry[] = results.map(item => {
             const skillBadges = parseInt(item["# of Skill Badges Completed"], 10) || 0;
-            const arcadePoints = parseInt(item["# of Arcade Games Completed"], 10) || 0;
+            const arcadePoints = parseInt(item["# of Arcade Games Completed"], 10) || 0; // Corrected key based on CSV
             // Handle variations in "Yes"/"No"
             const redemptionStatus = item['Access Code Redemption Status']?.trim().toLowerCase() === "yes"; 
 
@@ -56,7 +64,7 @@ export async function GET() {
                 name: item['User Name'] || "Unknown Name",
                 redemptionStatus: redemptionStatus,
                 skillBadges: skillBadges,
-                arcadePoints: arcadePoints,
+                arcadePoints: arcadePoints, // Use the correct variable name
                 progress: progress,
                 skillBadgesStr: `${skillBadges}/19`, 
                 arcadePointsStr: `${arcadePoints}/1`
@@ -94,43 +102,37 @@ export async function GET() {
             data: rankedData,
         };
 
-        // Return successful response with CORS header
+        // Return successful response with CORS headers and cache control
         return NextResponse.json(responsePayload, {
             status: 200,
             headers: {
-                'Access-Control-Allow-Origin': '*', // Allow all origins
-                'Access-Control-Allow-Methods': 'GET, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type',
+                ...corsHeaders, // Include CORS headers
+                'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0', 
+                'Pragma': 'no-cache', 
+                'Expires': '0' 
             },
         });
 
     } catch (error: any) { 
         console.error("Error processing leaderboard API:", error); 
         
-        // Return error response with CORS header
+        // Return error response with CORS headers
         return NextResponse.json({
             success: false,
             message: "Error reading leaderboard data.",
             error: error.message
         }, { 
             status: 500,
-            headers: {
-                'Access-Control-Allow-Origin': '*', // Allow all origins
-                'Access-Control-Allow-Methods': 'GET, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type',
-            },
+            headers: corsHeaders, // Include CORS headers
          });
     }
 }
 
-// Optional: Add an OPTIONS handler for more complex CORS scenarios if needed
+// Add an OPTIONS handler to explicitly handle preflight requests
 export async function OPTIONS() {
     return new Response(null, {
         status: 204, // No Content
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-        },
+        headers: corsHeaders, // Send CORS headers in response to OPTIONS
     });
 }
+
